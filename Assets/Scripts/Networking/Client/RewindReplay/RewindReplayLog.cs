@@ -52,8 +52,7 @@ public class RewindReplayLog<T>
 			Debug.LogError("Replay rewind queue logical error! Client Frame: " + firstClientLogEntry.ClientFrame + " Server Frame: " + serverFrame);
 			return _replayRewindQueue;
 		}
-
-		var baseDelta = Vector3.Distance(firstClientLogEntry.State.position, baseServerState.position);
+            		
 
 		targetObject.ApplyState(baseServerState);
 		for (int i = 0 ; i < _replayRewindQueue.Count ; i ++)
@@ -63,11 +62,9 @@ public class RewindReplayLog<T>
 			targetObject.ApplyInput(logEntry.Input, logEntry.DeltaTime);
 		}
 
-		var replayedClientState = targetObject.GetCurrentState();
-		//targetObject.ApplyState(originalClientState);
+		var replayedClientState = targetObject.GetCurrentState();		
 
 		var tooFar = Vector3.Distance(originalClientState.position, replayedClientState.position) > 0.05f;
-
 
 		if (interpolate && tooFar)
 		{
