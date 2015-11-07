@@ -48,7 +48,7 @@ public class InputController : MonoBehaviour
         {
             result.Thrust = Ship.ThrustType.Forward;
             result.HasInput = true;
-            _inputDebugView.MarkPressed(KEYCODE_THRUST_BACKWARD);
+            _inputDebugView.MarkPressed(KEYCODE_THRUST_FORWARD);
         }
         else if (Input.GetKey(KEYCODE_THRUST_BACKWARD))
         {
