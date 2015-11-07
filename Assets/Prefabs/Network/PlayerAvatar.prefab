@@ -520,6 +520,14 @@ Prefab:
       propertyPath: _showDebugIndicators
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 0}
+      propertyPath: _simulatedLatency
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 0}
+      propertyPath: _simulatedPacketDropPct
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_ParentPrefab: {fileID: 0}
   m_RootGameObject: {fileID: 176264}
