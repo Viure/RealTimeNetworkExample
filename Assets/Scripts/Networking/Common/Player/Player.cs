@@ -40,6 +40,10 @@ public class Player : NetworkBehaviour
     #endregion
 
     #region Shared privates
+    // Because I completely implemented the protocol serialization myself, I shouldn't need any SyncVars,
+    // but it looks like if there isn't at least one SyncVar that gets dirty unity won't send the data
+    // maybe unity thinks nothing was changed so it doesn't need to send anything
+    // (in the future, maybe find a way to set the dirty bit ourselves in the future and lose the [SyncVar])
     [SyncVar]
     private uint _lastServerFrameForPlayer;
     #endregion
