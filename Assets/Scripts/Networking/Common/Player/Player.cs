@@ -7,7 +7,8 @@ using System.Collections.Generic;
 public class Player : NetworkBehaviour
 {
     public const float CAMERA_ROTATION_MOUSE_SENSITIVITY = 200;
-    public const uint PACKET_CHECKSUM_BASE = 1241244; // I'm pretty sure Unity auto-checksums the UDP when you choose a "reliable" comm channel, but this is for educational purposes and I implemented a poor-man's checksum
+    // pretty sure Unity auto-checksums the UDP when you choose a "reliable" comm channel, but this is for educational purposes
+    public const uint PACKET_CHECKSUM_BASE = 1241244; 
 
     #region Client-only debugging settings
     [SerializeField] private bool _playerPrediction = true;  // Turns RewindReplay log functionality on and off
@@ -79,6 +80,16 @@ public class Player : NetworkBehaviour
     [Command]
     public void CmdSendInput(uint clientFrame, PlayerInput input)
     {		
+        // Drop the packet if we simulate packet drop
+        if (_simulatedPacketDropPct > 0)
+        {
+            var result = Random.Range(0, 100);
+            if (result <= _simulatedPacketDropPct)
+            {
+                Debug.LogWarning("Simulated packet drop, client frame: " + clientFrame);
+                return;
+            }
+        }
         // This section runs only on the server
         _lastClientInput = input;
         _lastServerFrameForPlayer = clientFrame;
