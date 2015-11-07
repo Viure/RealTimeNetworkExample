@@ -14,6 +14,8 @@ public class Player : NetworkBehaviour
     [SerializeField] private bool _objectInterpolation = true; // Turns object interpolation on/off
     [SerializeField] private bool _playInputLocally = true; // Turns local input effects on/off
     [SerializeField] private bool _showDebugIndicators = false; // Turns the RewindReplay and server position debug indicators
+    [SerializeField] private float _simulatedPacketDropPct = 0; // In Unity 5.2.2p2, the network simulator has a bug that crashes the network connection
+    [SerializeField] private int _simulatedLatency = 0; // In Unity 5.2.2p2, the network simulator has a bug that crashes the network connection
     [SerializeField] private Transform _lastServerPositionIndicator; // Transform indicating the last sent server position
     [SerializeField] private LineRenderer _rewindReplayPath; // LineRenderer to show RewindReplay log in real time.
     #endregion
@@ -125,6 +127,17 @@ public class Player : NetworkBehaviour
                 force = serverForce
             };
 
+        // Drop the packet if we simulate packet drop
+        if (_simulatedPacketDropPct > 0)
+        {
+            var result = Random.Range(0, 100);
+            if (result <= _simulatedPacketDropPct)
+            {
+                Debug.LogWarning("Simulated packet drop, server frame: " + serverFrame);
+                return;
+            }
+        }
+
         // Perform checksum and drop bad packets
         if (checksum != Checksum(serverState))
         {
@@ -139,6 +152,24 @@ public class Player : NetworkBehaviour
             return; // discard
         }
 
+        if (_simulatedLatency == 0)
+        {
+            AcceptUpdateFromServer(rtt, serverFrame, serverState);
+        }
+        else
+        {
+            StartCoroutine(AcceptUpdateFromServerCoro(rtt, serverFrame, serverState, _simulatedLatency/1000f));
+        }
+    }
+
+    private IEnumerator AcceptUpdateFromServerCoro(int rtt, uint serverFrame, EntityState serverState, float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        AcceptUpdateFromServer(rtt, serverFrame, serverState);
+    }
+
+    private void AcceptUpdateFromServer(int rtt, uint serverFrame, EntityState serverState)
+    {
         // Save the last RTT
         _lastServerRtt = rtt;
         // Register fram last packet received from server
@@ -148,9 +179,12 @@ public class Player : NetworkBehaviour
         // Register last known server state
         _lastServerState = serverState;
         // Adjust the debug server position indicator
-        _lastServerPositionIndicator.position = serverPosition;
+        _lastServerPositionIndicator.position = serverState.position;
     }
+
+
     #endregion
+
 
     // Client-side input processing
     private void ProcessAndSendInput()
@@ -188,13 +222,17 @@ public class Player : NetworkBehaviour
 
 
     private void LocalPlayerPerformReplayRewindPrediction()
-    {
-        var replayLog = _rewindReplayLog.Replay(_shipComponent, _inputController.GetPlayerInputFromController(), _lastServerFrameForPlayer, _lastServerState, _objectInterpolation);
-        _rewindReplayPath.SetVertexCount(replayLog.Count);
-        for (int i = 0; i < replayLog.Count; i++)
+    {        
+        var updatedReplayLog = _rewindReplayLog.Replay(_shipComponent, _inputController.GetPlayerInputFromController(), _lastServerFrameForPlayer, _lastServerState, _objectInterpolation);
+
+        // Set the vertex of the line renderer used to debug the replay log
+        _rewindReplayPath.SetVertexCount(updatedReplayLog.Count);
+        for (int i = 0; i < updatedReplayLog.Count; i++)
         {
-            _rewindReplayPath.SetPosition(i, replayLog[i].State.position);
+            _rewindReplayPath.SetPosition(i, updatedReplayLog[i].State.position);
         }
+
+        // Shout if the log gets too big
         if (_rewindReplayLog.LogSize > 300)
         {
             Debug.LogWarning("Too many replay log entries");
