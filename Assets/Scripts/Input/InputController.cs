@@ -2,7 +2,7 @@
 using System.Collections;
 
 public class InputController : MonoBehaviour
-{
+{    
     public const KeyCode KEYCODE_THRUST_FORWARD = KeyCode.W;
     public const KeyCode KEYCODE_THRUST_BACKWARD = KeyCode.S;
     public const KeyCode KEYCODE_THRUST_RIGHT = KeyCode.D;
@@ -118,11 +118,11 @@ public class InputController : MonoBehaviour
         }
         if (Input.GetKey(KEYCODE_VIEW_ROTATE_CLOCKWISE))
         {
-            _sphereCamera.Rotate(1 * Vector3.forward * Time.deltaTime * _mouseSensitivity, Space.Self);
+            _sphereCamera.Rotate(-1 * Vector3.forward * Time.deltaTime * _mouseSensitivity, Space.Self);
         }
         else if (Input.GetKey(KEYCODE_VIEW_ROTATE_COUNTER_CLOCKWISE))
         {
-            _sphereCamera.Rotate(-1 * Vector3.forward * Time.deltaTime * _mouseSensitivity, Space.Self);
+            _sphereCamera.Rotate(1 * Vector3.forward * Time.deltaTime * _mouseSensitivity, Space.Self);
         }
         if (Input.mouseScrollDelta.y != 0)
         {
