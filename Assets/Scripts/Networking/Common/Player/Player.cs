@@ -10,35 +10,30 @@ public class Player : NetworkBehaviour
     // pretty sure Unity auto-checksums the UDP when you choose a "reliable" comm channel, but this is for educational purposes
     public const uint PACKET_CHECKSUM_BASE = 1241244; 
 
-    #region Client-only debugging settings
-    [SerializeField] private bool _playerPrediction = true;  // Turns RewindReplay log functionality on and off
-    [SerializeField] private bool _objectInterpolation = true; // Turns object interpolation on/off
-    [SerializeField] private bool _playInputLocally = true; // Turns local input effects on/off
-    [SerializeField] private bool _showDebugIndicators = false; // Turns the RewindReplay and server position debug indicators
-    [SerializeField] private float _simulatedPacketDropPct = 0; // In Unity 5.2.2p2, the network simulator has a bug that crashes the network connection
-    [SerializeField] private int _simulatedLatency = 0; // In Unity 5.2.2p2, the network simulator has a bug that crashes the network connection
-    [SerializeField] private Transform _lastServerPositionIndicator; // Transform indicating the last sent server position
-    [SerializeField] private LineRenderer _rewindReplayPath; // LineRenderer to show RewindReplay log in real time.
-    #endregion
-
     #region General prefab settings
     [SerializeField] private Ship _shipComponent; // The actuall object that we're going to move. This class (Player) is not the Avatar object, Ship is. 
     [SerializeField] private Transform _cameraFollow; // The specific transform to lock the camera on, its probably set to the same object as _shipComponent.
+    [SerializeField] public Transform _lastServerPositionIndicator; // Transform indicating the last sent server position
+    [SerializeField] public LineRenderer _rewindReplayPath; // LineRenderer to show RewindReplay log in real time.
     #endregion
 
     // This client only stuff should probably be in another class between Player and Ship. (LocalPlayerController?)
     #region Client-only privates
-    private PlayerInput _lastSentInput;
     private EntityState _lastServerState;
-    private RewindReplayLog<PlayerInput> _rewindReplayLog;
-    private float _lastDeserializeTime;
-    private InputController _inputController; 
     private int _lastServerRtt;
+    private float _lastDeserializeTime;
+    #endregion
+
+    #region Local client only
+    private PlayerInput _lastSentInput;
+    private RewindReplayLog<PlayerInput> _rewindReplayLog;
+    private InputController _inputController; 
     #endregion
 
     #region Server-only privates
     private PlayerInput _lastClientInput;
     #endregion
+
 
     #region Shared privates
     // Because I completely implemented the protocol serialization myself, I shouldn't need any SyncVars,
@@ -81,10 +76,10 @@ public class Player : NetworkBehaviour
     public void CmdSendInput(uint clientFrame, PlayerInput input)
     {		
         // Drop the packet if we simulate packet drop
-        if (_simulatedPacketDropPct > 0)
+        if (NetworkDebugSettings.SimulatedPacketDropPct > 0)
         {
             var result = Random.Range(0, 100);
-            if (result <= _simulatedPacketDropPct)
+            if (result <= NetworkDebugSettings.SimulatedPacketDropPct)
             {
                 Debug.LogWarning("Simulated packet drop, client frame: " + clientFrame);
                 return;
@@ -143,10 +138,10 @@ public class Player : NetworkBehaviour
             };
 
         // Drop the packet if we simulate packet drop
-        if (_simulatedPacketDropPct > 0)
+        if (NetworkDebugSettings.SimulatedPacketDropPct > 0)
         {
             var result = Random.Range(0, 100);
-            if (result <= _simulatedPacketDropPct)
+            if (result <= NetworkDebugSettings.SimulatedPacketDropPct)
             {
                 Debug.LogWarning("Simulated packet drop, server frame: " + serverFrame);
                 return;
@@ -167,13 +162,13 @@ public class Player : NetworkBehaviour
             return; // discard
         }
 
-        if (_simulatedLatency == 0)
+        if (NetworkDebugSettings.SimulatedLatency == 0)
         {
             AcceptUpdateFromServer(rtt, serverFrame, serverState);
         }
         else
         {
-            StartCoroutine(AcceptUpdateFromServerCoro(rtt, serverFrame, serverState, _simulatedLatency/1000f));
+            StartCoroutine(AcceptUpdateFromServerCoro(rtt, serverFrame, serverState, NetworkDebugSettings.SimulatedLatency/1000f));
         }
     }
 
@@ -200,7 +195,31 @@ public class Player : NetworkBehaviour
 
     #endregion
 
+    private void Update()
+    {        
+        if (isServer)
+        {           
+            UpdateServerSide();
+        }
+        else
+        {
+            UpdateClientSide();
+        }    
+    }
 
+    private void UpdateClientSide()
+    {
+        if (isLocalPlayer)
+        {
+            LocalPlayerHandleStateUpdate();
+        }
+        else
+        {
+            RemotePlayerHandleStateUpdate();
+        }            
+        SetDebugIndicatorsVisibility(NetworkDebugSettings.ShowDebugIndicators);
+    }
+        
     // Client-side input processing
     private void ProcessAndSendInput()
     {        
@@ -218,7 +237,7 @@ public class Player : NetworkBehaviour
         // First we create a new entry in the rewind-replay log
         _rewindReplayLog.LogEntry(currentFrame, currentState, currentInput, currentDeltaTime);
 
-        if (_playInputLocally) // For debug and demo purposes, we can disable the effect of the input on the local player from the inspector
+        if (NetworkDebugSettings.PlayInputLocally) // For debug and demo purposes, we can disable the effect of the input on the local player from the inspector
         {
             // We play the input on our local ship at the client side, in hope the input will provide a similar result on the server side
             _shipComponent.ApplyInput(currentInput, currentDeltaTime);
@@ -238,7 +257,7 @@ public class Player : NetworkBehaviour
 
     private void LocalPlayerPerformReplayRewindPrediction()
     {        
-        var updatedReplayLog = _rewindReplayLog.Replay(_shipComponent, _inputController.GetPlayerInputFromController(), _lastServerFrameForPlayer, _lastServerState, _objectInterpolation);
+        var updatedReplayLog = _rewindReplayLog.Replay(_shipComponent, _inputController.GetPlayerInputFromController(), _lastServerFrameForPlayer, _lastServerState, NetworkDebugSettings.ObjectInterpolation);
 
         // Set the vertex of the line renderer used to debug the replay log
         _rewindReplayPath.SetVertexCount(updatedReplayLog.Count);
@@ -256,7 +275,7 @@ public class Player : NetworkBehaviour
 
     private void LocalPlayerPerformInterpolationWithoutPrediction()
     {
-        if (_objectInterpolation)
+        if (NetworkDebugSettings.ObjectInterpolation)
         {
             _shipComponent.ApplyState(EntityState.Lerp(_shipComponent.GetCurrentState(), _lastServerState, 5 * Time.deltaTime));
         }
@@ -265,12 +284,12 @@ public class Player : NetworkBehaviour
             _shipComponent.ApplyState(_lastServerState);
         }
     }
-
-    // This method performs client-side prediction for players that are not the local player
-    private void RemotePlayerPerformExtrapolation()
+        
+    private void RemotePlayerHandleStateUpdate()
     {
         var targetState = _lastServerState;
-        if (_playerPrediction)
+        // If enabled, perform extrapolation
+        if (NetworkDebugSettings.RemotePlayerExtrapolation)
         {
             var serverRttCompensation = Mathf.Max(0, _lastServerRtt/1000); 
             var secondsSinceLastServerState = Time.time - _lastDeserializeTime + serverRttCompensation;
@@ -278,7 +297,7 @@ public class Player : NetworkBehaviour
             targetState.position += _lastServerState.force * Time.deltaTime * secondsSinceLastServerState; // + rtt/1000);
         }
         //var newState = EntityState.Lerp(_lastServerState, targetState, Time.deltaTime);
-        if (_objectInterpolation)
+        if (NetworkDebugSettings.ObjectInterpolation)
         {
             _shipComponent.ApplyState(EntityState.Lerp(_shipComponent.GetCurrentState(), targetState, 2 * Time.deltaTime));
         }
@@ -288,44 +307,26 @@ public class Player : NetworkBehaviour
         }
     }
 
+    private void LocalPlayerHandleStateUpdate()
+    {
+        ProcessAndSendInput();
+        bool serverStartedSendingPackets = _lastServerFrameForPlayer > 0;
+        if (NetworkDebugSettings.LocalPlayerPrediction && serverStartedSendingPackets)
+        {
+            LocalPlayerPerformReplayRewindPrediction();
+        }
+        else
+        {
+            LocalPlayerPerformInterpolationWithoutPrediction();
+        }
+    }
+
     private void UpdateServerSide()
     {
         _shipComponent.ApplyInput(_lastClientInput, Time.deltaTime);
     }
 
-    private void UpdateClientSide()
-    {
-        if (isLocalPlayer)
-        {
-            ProcessAndSendInput();
-            bool serverStartedSendingPackets = _lastServerFrameForPlayer > 0;
-            if (_playerPrediction && serverStartedSendingPackets)
-            {
-                LocalPlayerPerformReplayRewindPrediction();
-            }
-            else
-            {
-                LocalPlayerPerformInterpolationWithoutPrediction();
-            }
-        }
-        else
-        {
-            RemotePlayerPerformExtrapolation();
-        }            
-        SetDebugIndicatorsVisibility(_showDebugIndicators);
-    }
 
-    private void Update()
-    {        
-        if (isServer)
-        {			
-            UpdateServerSide();
-        }
-        else
-        {
-            UpdateClientSide();
-        }    
-    }
 
     private bool _lastDebugIndicatorVisibility = true;
 

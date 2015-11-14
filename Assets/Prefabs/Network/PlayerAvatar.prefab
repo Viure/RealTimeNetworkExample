@@ -122,7 +122,7 @@ Transform:
   m_GameObject: {fileID: 183376}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: .400000006, y: .400000006, z: .400000006}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 476264}
   m_RootOrder: 1
@@ -311,16 +311,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d06656f39b8c2384ba6d6848168c441b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _playerPrediction: 1
-  _objectInterpolation: 1
-  _playInputLocally: 1
-  _showDebugIndicators: 1
-  _simulatedPacketDropPct: 0
-  _simulatedLatency: 0
-  _lastServerPositionIndicator: {fileID: 435350}
-  _rewindReplayPath: {fileID: 12010028}
   _shipComponent: {fileID: 11461094}
   _cameraFollow: {fileID: 408068}
+  _lastServerPositionIndicator: {fileID: 435350}
+  _rewindReplayPath: {fileID: 12010028}
 --- !u!114 &11407124
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -527,6 +521,18 @@ Prefab:
     - target: {fileID: 0}
       propertyPath: _simulatedPacketDropPct
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 0}
+      propertyPath: m_LocalScale.x
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 0}
+      propertyPath: m_LocalScale.y
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 0}
+      propertyPath: m_LocalScale.z
+      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_ParentPrefab: {fileID: 0}
